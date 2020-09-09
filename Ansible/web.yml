@@ -1,0 +1,29 @@
+---  # Bootstrap Webservers
+- hosts: httpd
+  become: yes
+  tasks:
+  - name: install httpd
+    yum:
+      name: httpd
+      state: latest
+  - name: create index.html file
+    file:
+      name: /var/www/html/index.html
+      state: touch
+  - name: add web content
+    lineinfile:
+      line: "assignment configurations"
+      path: /var/www/html/index.html
+  - name: start httpd
+    service:
+      name: httpd
+      state: started
+  - name: Ensure that free space on the tested volume is greater than 20%
+    assert:
+    that:
+      - mount.size_available > mount.size_total|float * 0.20
+    msg: Disk space has reached 80% threshold
+    vars:
+    mount: "{{ ansible_mounts | selectattr('mount','equalto',item.mount) | list | first }}"
+    with_items:
+    - "{{ ansible_mounts }}"

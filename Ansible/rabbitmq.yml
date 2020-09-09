@@ -1,0 +1,43 @@
+---  # Bootstrap Webservers
+- hosts: rabbitmqservers
+  become: yes
+  tasks:
+  - name: Add rabbit repo
+    shell: echo "deb https://dl.bintray.com/rabbitmq/debian stretch main" | tee /etc/apt/sources.list.d/bintray.rabbitmq.list
+
+  - name: add trusted key
+    shell: wget -O- https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc | apt-key add -
+
+  - name: install rabbitmq
+    apt: 
+      name: rabbitmq-server
+      state: present
+      update_cache: yes
+
+  - name: enable rabbitmq plugins
+    rabbitmq_plugin:
+      names: rabbitmq_management
+      state: enabled
+  notify:
+    - restart rabbitmq
+
+  - name: add rabbitmq users admin
+    rabbitmq_user:
+      user: admin
+      password: superpassword
+      vhost: /
+      tags: administrator
+      configure_priv: .*
+      read_priv: .*
+      write_priv: .*
+      state: present
+  
+  - name: Ensure that free space on the tested volume is greater than 20%
+    assert:
+    that:
+      - mount.size_available > mount.size_total|float * 0.20
+    msg: Disk space has reached 80% threshold
+    vars:
+    mount: "{{ ansible_mounts | selectattr('mount','equalto',item.mount) | list | first }}"
+    with_items:
+    - "{{ ansible_mounts }}"
